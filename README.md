@@ -35,9 +35,24 @@ The config will support mandatory and optional settings as follows.
 ````json
 {
   "log_level": "info",
-  "sitemap_urls": [ "https://bbc.co.uk/sitemap.xml" , "https://www.bbc.com/sitemap.xml"],
+  "sitemap_urls": [ "https://play.iwin.com/sitemap.xml" ],
   "user_agent_for_requests": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.139 Safari/537.36",
-  "delay_between_requests_in_seconds": 0.5
+  "delay_between_requests_in_seconds": 0.5,
+  "optional": {
+    "validations": {
+      "should_locate_num_sitemaps": 2,
+      "should_locate_these_sitemaps": [
+        "https://play.iwin.com/sitemap.xml",
+        "https://play.iwin.com/sitemap-site.xml"
+      ],
+      "should_contain_these_urls": [
+        { "url": "https://play.iwin.com/welcome/browser", "changefreq": "daily", "priority": "1.0" },
+        { "url": "https://play.iwin.com/welcome/about", "changefreq": "monthly", "priority": "0.1" },
+        { "url": "https://play.iwin.com/welcome/terms-of-service", "changefreq": "monthly", "priority": "0.1" },
+        { "url": "https://play.iwin.com/welcome/privacy-policy", "changefreq": "monthly", "priority": "0.1" },
+      ]
+    }
+  }  
 }
 ````
 
@@ -63,6 +78,17 @@ user agent.
 ### delay_between_requests_in_seconds (mandatory)
 The delay_between_requests_in_seconds must be set to a positive float >= 0 (i.e. 0.1 is 100 milliseconds, 1 is 1 second) 
 and will be used to set the time between each request.
+
+### should_locate_num_sitemaps (optional)
+This can be used to confirm you find the correct number of sitemaps.
+
+### should_locate_these_sitemaps (optional)
+This can be used to confirm you find the correct sitemap files.
+
+### should_contain_these_urls (optional)
+This can be used to verify that specific urls are located with specific settings. 
+
+
 
 ## Validating your config
 Config files can be validated easily, to run the validation simply run

@@ -10,12 +10,7 @@ class SitemapValidator
 
     sitemaps_to_process = config.sitemap_urls.clone
     process_sitemaps( sitemaps_to_process, headers, collected_urls, sitemap_responses, config )
-
-    Log.logger.info("Located urls\n#{collected_urls.join("\n")}")
-
-    #todo apply the additional business logic concerns see optional.validations
-    #puts sitemap_responses.to_json
-    #puts collected_urls.to_json
+    apply_validations( config, sitemap_responses, collected_urls, report_dir )
   end
 
   def self.build_headers( config )
@@ -35,6 +30,12 @@ class SitemapValidator
       end
       break if sitemaps_to_process.empty?
     end
+    sitemap_responses_as_text = ''
+    sitemap_responses.each do |url, response|
+      sitemap_responses_as_text << "#{url}->#{response}\n"
+    end
+    Log.logger.info("Processed sitemaps\n#{sitemap_responses_as_text}")
+    Log.logger.info("Located urls\n#{collected_urls.join("\n")}")
   end
 
   def self.processs_sitemap( sitemap_url, headers, sitemaps_to_process, processed_sitemaps, collected_urls, sitemap_responses )
@@ -60,6 +61,7 @@ class SitemapValidator
         end
       rescue => ex
         Log.logger.error( "Error: sitemap_url=#{sitemap_url} contents could not be parsed as xml")
+        sitemap_responses[sitemap_url] = 'Xml Parse Failure'
       end
 
     end
@@ -119,6 +121,28 @@ class SitemapValidator
       end
 
     end
+  end
+
+  def self.apply_validations( config, sitemap_responses, collected_urls, report_dir )
+    #todo validate contents of sitemap_responses
+
+    unless config.optional.nil?
+      unless config.optional.validations.nil?
+        v = config.optional.validations
+
+        unless v.should_locate_num_sitemaps.nil?
+          unless sitemap_responses.size.eql?( v.should_locate_num_sitemaps )
+            Log.logger.error( "Error: Expected num sitemaps to be #{v.should_locate_num_sitemaps} but it was #sitemap_responses.size}" )
+          end
+        end
+
+        #todo apply v.should_locate_these_sitemaps  validation
+        #todo apply v.should_contain_these_urls     validation
+
+      end
+    end
+
+    #todo generate report(s)
   end
 
 end

@@ -11,10 +11,10 @@
         "https://play.iwin.com/sitemap-site.xml"
       ],
       "should_contain_these_urls": [
-        { "url": "https://play.iwin.com/welcome/browser", "changefreq": "daily", "priority": "1.0" },
-        { "url": "https://play.iwin.com/welcome/about", "changefreq": "monthly", "priority": "0.1" },
-        { "url": "https://play.iwin.com/welcome/terms-of-service", "changefreq": "monthly", "priority": "0.1" },
-        { "url": "https://play.iwin.com/welcome/privacy-policy", "changefreq": "monthly", "priority": "0.1" },
+        { "url": "https://play.iwin.com/welcome/browser", "changefreq": "daily", "priority": 1.0 },
+        { "url": "https://play.iwin.com/welcome/about", "changefreq": "monthly", "priority": 0.1 },
+        { "url": "https://play.iwin.com/welcome/terms-of-service", "changefreq": "monthly", "priority": 0.1 },
+        { "url": "https://play.iwin.com/welcome/privacy-policy", "changefreq": "monthly", "priority": 0.1 }
       ]
     }
   }
