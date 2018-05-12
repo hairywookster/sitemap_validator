@@ -22,7 +22,6 @@ end
 auto_require '/lib'
 auto_require '/tasks'
 
-
 desc 'Emits help and summary of commands'
 task :help do
   print <<EOF
@@ -33,7 +32,7 @@ Run    rake -T    for more information about available tasks
 EOF
 end
 
-task :default => 'help'
+task default: 'help'
 
 desc 'runs the sitemap validator using the config specified. Usage: run_validator["<path to the config file>", "<path to output folder>"]'
 task :run_validator, [:config_file, :result_folder] do |t, args|

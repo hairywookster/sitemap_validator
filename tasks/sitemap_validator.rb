@@ -3,7 +3,7 @@ class SitemapValidator
   #See https://www.sitemaps.org/protocol.html
 
   def self.run_validator( config, report_dir )
-    Log.logger.info( "Validating Sitemaps")
+    Log.logger.info( 'Validating Sitemaps' )
     url_responses = {}
     sitemap_responses = {}
     headers = build_headers( config )
@@ -193,7 +193,7 @@ class SitemapValidator
       end
     end
 
-    #todo generate report(s)
+    Report.emit_reports( errors, sitemap_responses, url_responses, report_dir )
   end
 
 end
