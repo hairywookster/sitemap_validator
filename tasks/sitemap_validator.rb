@@ -4,13 +4,13 @@ class SitemapValidator
 
   def self.run_validator( config, report_dir )
     Log.logger.info( "Validating Sitemaps")
-    collected_urls = []
+    url_responses = {}
     sitemap_responses = {}
     headers = build_headers( config )
 
     sitemaps_to_process = config.sitemap_urls.clone
-    process_sitemaps( sitemaps_to_process, headers, collected_urls, sitemap_responses, config )
-    apply_validations( config, sitemap_responses, collected_urls, report_dir )
+    process_sitemaps( sitemaps_to_process, headers, url_responses, sitemap_responses, config )
+    apply_validations( config, sitemap_responses, url_responses, report_dir )
   end
 
   def self.build_headers( config )
@@ -20,25 +20,29 @@ class SitemapValidator
     headers
   end
 
-  def self.process_sitemaps( sitemaps_to_process, headers, collected_urls, sitemap_responses, config )
+  def self.process_sitemaps( sitemaps_to_process, headers, url_responses, sitemap_responses, config )
     processed_sitemaps = []
     loop do
       sitemap_url = sitemaps_to_process.pop
-      processs_sitemap( sitemap_url, headers, sitemaps_to_process, processed_sitemaps, collected_urls, sitemap_responses )
+      processs_sitemap( sitemap_url, headers, sitemaps_to_process, processed_sitemaps, url_responses, sitemap_responses )
       unless sitemaps_to_process.empty?
         sleep config.delay_between_requests_in_seconds
       end
       break if sitemaps_to_process.empty?
     end
-    sitemap_responses_as_text = ''
-    sitemap_responses.each do |url, response|
-      sitemap_responses_as_text << "#{url}->#{response}\n"
-    end
-    Log.logger.info("Processed sitemaps\n#{sitemap_responses_as_text}")
-    Log.logger.info("Located urls\n#{collected_urls.join("\n")}")
+    Log.logger.info("Processed sitemaps\n#{hash_to_string(sitemap_responses)}")
+    Log.logger.info("Located urls\n#{hash_to_string(url_responses)}")
   end
 
-  def self.processs_sitemap( sitemap_url, headers, sitemaps_to_process, processed_sitemaps, collected_urls, sitemap_responses )
+  def self.hash_to_string( contents )
+    contents_as_string = ''
+    contents.each do |k, v|
+      contents_as_string << "#{k} -> #{v}\n"
+    end
+    contents_as_string
+  end
+
+  def self.processs_sitemap( sitemap_url, headers, sitemaps_to_process, processed_sitemaps, url_responses, sitemap_responses )
     sitemap_content = get_sitemap_content( sitemap_url, headers, sitemap_responses )
     processed_sitemaps << sitemap_url
     unless sitemap_content.nil?
@@ -50,20 +54,30 @@ class SitemapValidator
           as_xml_doc.elements.each('sitemapindex/sitemap/loc') do |location_element|
             sitemaps_to_process << location_element.text
           end
-
-          as_xml_doc.elements.each('sitemapindex/urlset/url/loc') do |location_element|
-            collected_urls << location_element.text
-          end
-
-          as_xml_doc.elements.each('urlset/url/loc') do |location_element|
-            collected_urls << location_element.text
-          end
+          collect_url_node( as_xml_doc, 'sitemapindex/urlset/url', url_responses )
+          collect_url_node( as_xml_doc, 'urlset/url', url_responses )
         end
-      rescue => ex
+      rescue => erd
         Log.logger.error( "Error: sitemap_url=#{sitemap_url} contents could not be parsed as xml")
         sitemap_responses[sitemap_url] = 'Xml Parse Failure'
       end
 
+    end
+  end
+
+  def self.collect_url_node( as_xml_doc, path_to_collect,url_responses)
+    as_xml_doc.elements.each(path_to_collect) do |url_element|
+      url_data = { :url => nil, :priority => nil, :changefreq => nil }.extend(Methodize)
+      url_element.children.each do |child_element|
+        if 'loc'.eql?( child_element.name )
+          url_data.url = child_element.text
+        elsif 'priority'.eql?( child_element.name )
+          url_data.priority = child_element.text
+        elsif 'changefreq'.eql?( child_element.name )
+          url_data.changefreq = child_element.text
+        end
+      end
+      url_responses[url_data.url] = url_data
     end
   end
 
@@ -81,7 +95,7 @@ class SitemapValidator
       else
         Log.logger.error( "Error: Could not GET sitemap_url=#{sitemap_url} response code=#{page.code}")
         sitemap_responses[sitemap_url] = page.code.to_i
-        nil
+       nil
       end
     rescue Mechanize::ResponseCodeError => ex
       Log.logger.error( "Error: Could not GET sitemap_url=#{sitemap_url} error=#{ex.message}")
@@ -107,14 +121,13 @@ class SitemapValidator
       xsd = Nokogiri::XML::Schema( schema_contents )
       as_xml_doc = Nokogiri::XML(xml)
       begin
-        #valid = xsd.valid?(as_xml_doc)
         has_errors = false
         xsd.validate(as_xml_doc).each do |error|
           has_errors = true
           Log.logger.error( "Error: Sitemap #{sitemap_url} contains error=#{error.message}" )
         end
         return !has_errors
-      rescue => ex
+      rescue
         Log.logger.error( "Error: Sitemap #{sitemap_url} failed schema validation" )
         sitemap_responses[sitemap_url] = 'Failed schema validation'
         false
@@ -123,8 +136,13 @@ class SitemapValidator
     end
   end
 
-  def self.apply_validations( config, sitemap_responses, collected_urls, report_dir )
-    #todo validate contents of sitemap_responses
+  def self.apply_validations( config, sitemap_responses, url_responses, report_dir )
+    errors = []
+    sitemap_responses.each do |sitemap_url, sitemap_response|
+      unless 200.eql?( sitemap_response )
+        errors << "Error: Expected sitemap url #{sitemap_url} to return a 200 response but got #{sitemap_response}"
+      end
+    end
 
     unless config.optional.nil?
       unless config.optional.validations.nil?
@@ -132,12 +150,45 @@ class SitemapValidator
 
         unless v.should_locate_num_sitemaps.nil?
           unless sitemap_responses.size.eql?( v.should_locate_num_sitemaps )
-            Log.logger.error( "Error: Expected num sitemaps to be #{v.should_locate_num_sitemaps} but it was #sitemap_responses.size}" )
+            message = "Error: Expected num sitemaps to be #{v.should_locate_num_sitemaps} but it was #sitemap_responses.size}"
+            Log.logger.error( message )
+            errors << message
           end
         end
 
-        #todo apply v.should_locate_these_sitemaps  validation
-        #todo apply v.should_contain_these_urls     validation
+        unless v.should_locate_these_sitemaps.nil?
+          v.should_locate_these_sitemaps.each do |sitemap_url|
+            unless sitemap_responses.has_key?( sitemap_url )
+              message = "Error: Expected sitemap responses to include a sitemap url #{sitemap_url}"
+              Log.logger.error( message )
+              errors << message
+            end
+          end
+        end
+
+        unless v.should_contain_these_urls.nil?
+          v.should_contain_these_urls.each do |url_validation|
+            url = url_validation.url
+            if url_responses.has_key?( url )
+              unless url_validation.changefreq.eql?( url_responses[ url ].changefreq )
+                message = "Error: Expected url #{url} to have changefreq #{url_responses[ url ].changefreq}"
+                Log.logger.error( message )
+                errors << message
+              end
+              unless url_validation.priority.to_s.eql?( url_responses[ url ].priority )
+                message = "Error: Expected url #{url} to have priority #{url_responses[ url ].priority}"
+                Log.logger.error( message )
+                errors << message
+              end
+
+            else
+              message = "Error: Expected url #{url_validation.url} to have been collected"
+              Log.logger.error( message )
+              errors << message
+            end
+
+          end
+        end
 
       end
     end
