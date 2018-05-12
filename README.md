@@ -7,6 +7,13 @@ Sitemaps can be either be
 * self contained
 * reference other sitemaps
 
+This tool provides a simple way to validate the contents of the root sitemap and referenced sitemaps contain valid structure according the xml schema definition.
+It also provides a way to specify extra checks that should be ran to confirm the contents of the sitemaps are as expected.
+
+## Limitations
+You should always review your sitemaps on Google Search Console to identify issues this tool may not locate.
+This tool does not support every sitemap xsd format. But its trivial to extend to support new ones (i.e video , news, etc) 
+
 ## Installation
 - Install rvm (assuming your on a flavor of linux) (otherwise see windows alternative) 
 - Install Ruby 2.3+
